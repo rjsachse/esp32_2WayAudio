@@ -42,6 +42,7 @@ static void micRemTask(void* parameter) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if (streaming) {
             ampOutputRem();
+            sendAudio();
         }
     }
 }
