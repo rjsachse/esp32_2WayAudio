@@ -17,16 +17,21 @@ uint8_t* wsBuffer = NULL;
 size_t wsBufferLen = 0;
 bool stopAudio = false;
 
+void applyMicRemGain() {
+  float gainFactor = (float)pow(2, micGain - MIC_GAIN_CENTER);
+  int16_t* wsPtr = (int16_t*) wsBuffer;
+  for (int i = 0; i < wsBufferLen / sizeof(int16_t); i++) wsPtr[i] = constrain(wsPtr[i] * gainFactor, SHRT_MIN, SHRT_MAX);
+}
+
 static void ampOutputRem() {
     static int bytesCtr = 0;
     // Apply gain to the remote mic data
-    // applyMicRemGain(); // Implement this function as needed
+    applyMicRemGain(); // Implement this function as needed
     size_t bytesWritten = 0;
     bytesWritten = i2s.write(wsBuffer, wsBufferLen);
     bytesCtr += bytesWritten;
     if (bytesCtr > 16 * 16000 / 5) { // Assuming 16-bit samples and 16kHz sample rate
         int16_t* wsPtr = (int16_t*) wsBuffer;
-        // displayAudioLed(wsPtr[0]); // Implement this function as needed
         bytesCtr = 0;
     }
     wsBufferLen = 0;
@@ -57,6 +62,10 @@ void micTaskStatus() {
     wsBufferLen = 0;
     if (wsBuffer == NULL) {
         wsBuffer = (uint8_t*)malloc(128); // Adjust size as needed
+        if (wsBuffer == NULL) {
+            Serial.println("Failed to allocate memory for wsBuffer");
+            return;
+        }
     }
     xTaskCreate(micRemTask, "micRemTask", 4096, NULL, 1, &micRemHandle);
 }
@@ -164,12 +173,6 @@ static size_t micInput() {
   }
   if (doStreamCapture && !audioBytesUsed) memcpy(audioBuffer, sampleBuffer, bytesRead);
   return bytesRead;
-}
-
-void applyMicRemGain() {
-  float gainFactor = (float)pow(2, micGain - MIC_GAIN_CENTER);
-  int16_t* wsPtr = (int16_t*) wsBuffer;
-  for (int i = 0; i < wsBufferLen / sizeof(int16_t); i++) wsPtr[i] = constrain(wsPtr[i] * gainFactor, SHRT_MIN, SHRT_MAX);
 }
 
 void sendAudio() {
